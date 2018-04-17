@@ -150,7 +150,7 @@ node("${nodeLabel}") {
        }
 
         stage('Building docker') {
-           cloneRepository(dockerRepository, branchName, user, gitCredentialsID, gitEmail);
+           cloneRepository(dockerRepository, branchName, ballerinaXUser, gitCredentialsID, gitEmail);
            if (isRelease) {
                release(settingsXMLID, dockerRepository, dockerVersion, dockerReleaseTag, dockerDevVersion, dockerSkipTests);
            } else if (isBuild) {
@@ -161,7 +161,7 @@ node("${nodeLabel}") {
        }
 
         stage('Building kubernetes') {
-           cloneRepository(kubernetesRepository, branchName, user, gitCredentialsID, gitEmail);
+           cloneRepository(kubernetesRepository, branchName, ballerinaXUser, gitCredentialsID, gitEmail);
            if (isRelease) {
                release(settingsXMLID, kubernetesRepository, kubernetesVersion, kubernetesReleaseTag, kubernetesDevVersion, kubernetesSkipTests);
            } else if (isBuild) {
