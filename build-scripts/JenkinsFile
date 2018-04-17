@@ -19,6 +19,8 @@ boolean isCleanRelease = CLEANRELEASE.equals(expectedAction);
 String ballerinaVersion, ballerinaReleaseTag, ballerinaDevVersion, ballerinaSkipTests;
 String exampleVersion, exampleReleaseTag, exampleDevVersion, exampleSkipTests;
 String distributionVersion, distributionReleaseTag, distributionDevVersion, distributionSkipTests;
+String dockerVersion, dockerReleaseTag, dockerDevVersion, dockerSkipTests;
+String kubernetesVersion, kubernetesReleaseTag, kubernetesDevVersion, kubernetesSkipTests;
 
 String releaseVersionToClean, releaseTagToClean;
 String allowCleanUpAfterReleaseFailure = NO;
@@ -40,7 +42,9 @@ if (isRelease) {
             [$class: TEXT_PARAM_DEF_CLASS, description: 'Please provide Ballerina Next Development Version', name: 'ballerina-next-development-version'],
             [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-ballerina-tests'],
             [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-example-tests'],
-            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-distribution-tests']
+            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-distribution-tests'],
+            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-docker-tests'],
+            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-kubernetes-tests']
     ]);
 
     allowCleanUpAfterReleaseFailure = releaseParamInput['clean-up-after-failure'];
@@ -63,6 +67,16 @@ if (isRelease) {
     distributionReleaseTag = ballerinaReleaseTag;
     distributionDevVersion = ballerinaDevVersion;
     distributionSkipTests = releaseParamInput['skip-distribution-tests'];
+
+    dockerVersion = ballerinaVersion;
+    dockerReleaseTag = ballerinaReleaseTag;
+    dockerDevVersion = ballerinaDevVersion;
+    dockerSkipTests = releaseParamInput['skip-docker-tests'];
+
+    kubernetesVersion = ballerinaVersion;
+    kubernetesReleaseTag = ballerinaReleaseTag;
+    kubernetesDevVersion = ballerinaDevVersion;
+    kubernetesSkipTests = releaseParamInput['skip-kubernetes-tests'];
 }
 
 if (isBuild) {
@@ -72,7 +86,9 @@ if (isBuild) {
             [$class: TEXT_PARAM_DEF_CLASS, defaultValue: MASTER, description: 'Provide the branch perform the build', name: 'branch-name'],
             [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, description: 'Skip ballerina Tests', name: 'skip-ballerina-tests'],
             [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-example-tests'],
-            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-distribution-tests']
+            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-distribution-tests'],
+            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-docker-tests'],
+            [$class: CHOICE_PARAM_DEF_CLASS, choices: yesNoString, name: 'skip-kubernetes-tests']
     ]);
 
     nodeLabel = buildParamInput['node-label'];
@@ -81,6 +97,8 @@ if (isBuild) {
     ballerinaSkipTests = buildParamInput['skip-ballerina-tests'];
     exampleSkipTests = buildParamInput['skip-example-tests'];
     distributionSkipTests = buildParamInput['skip-distribution-tests'];
+    dockerSkipTests = buildParamInput['skip-docker-tests'];
+    kubernetesSkipTests = buildParamInput['skip-kubernetes-tests'];
 }
 
 if (isCleanRelease) {
@@ -98,6 +116,7 @@ if (isCleanRelease) {
 
 node("${nodeLabel}") {
     String user = env.GIT_USER;
+    String ballerinaXUser= "ballerinax";
     String gitCredentialsID = env.GIT_CREDENTIALS_ID;
     String gitEmail = env.GIT_EMAIL;
     String settingsXMLID = env.SETTINGS_XML_ID;
@@ -125,6 +144,28 @@ node("${nodeLabel}") {
                build(settingsXMLID, exampleRepository, exampleSkipTests);
            } else if (isCleanRelease) {
                cleanRelease(exampleRepository, user, releaseTagToClean, releaseVersionToClean, gitCredentialsID)
+           }
+       }
+
+        stage('Building docker') {
+           cloneRepository(dockerRepository, branchName, user, gitCredentialsID, gitEmail);
+           if (isRelease) {
+               release(settingsXMLID, dockerRepository, dockerVersion, dockerReleaseTag, dockerDevVersion, dockerSkipTests);
+           } else if (isBuild) {
+               build(settingsXMLID, dockerRepository, dockerSkipTests);
+           } else if (isCleanRelease) {
+               cleanRelease(dockerRepository, ballerinaXUser, releaseTagToClean, releaseVersionToClean, gitCredentialsID)
+           }
+       }
+
+        stage('Building kubernetes') {
+           cloneRepository(kubernetesRepository, branchName, user, gitCredentialsID, gitEmail);
+           if (isRelease) {
+               release(settingsXMLID, kubernetesRepository, kubernetesVersion, kubernetesReleaseTag, kubernetesDevVersion, kubernetesSkipTests);
+           } else if (isBuild) {
+               build(settingsXMLID, kubernetesRepository, kubernetesSkipTests);
+           } else if (isCleanRelease) {
+               cleanRelease(kubernetesRepository, ballerinaXUser, releaseTagToClean, releaseVersionToClean, gitCredentialsID)
            }
        }
 
