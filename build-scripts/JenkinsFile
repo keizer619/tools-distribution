@@ -123,6 +123,8 @@ node("${nodeLabel}") {
     String ballerinaRepository = "ballerina-lang";
     String exampleRepository = "ballerina-examples";
     String distributionRepository = "ballerina-distribution";
+    String dockerRepository = "docker";
+    String kubernetesRepository = "kubernetes"
 
     try {
         stage('Building ballerina') {
