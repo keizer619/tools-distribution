@@ -34,6 +34,7 @@ String CHOICE_PARAM_DEF_CLASS = "ChoiceParameterDefinition";
 String propertyUpdateCommitMessage = "Update versions of org.ballerinalang.* dependencies";
 String dockerGroupId = "org.ballerinax.docker";
 String kubernetesGroupId = "org.ballerinax.kubernetes";
+String ballerinaGroupId = "org.ballerinalang";
 
 if (isRelease) {
     releaseParamInput = input(
@@ -210,6 +211,8 @@ node("${nodeLabel}") {
                             "${dockerGroupId}:*", !isRelease);
                 updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
                             "${kubernetesGroupId}:*", !isRelease);
+                updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
+                            "${ballerinaGroupId}:*", !isRelease);
                release(settingsXMLID, distributionRepository, distributionVersion, distributionReleaseTag, distributionDevVersion, distributionSkipTests);
            } else if (isBuild) {
                build(settingsXMLID, distributionRepository, distributionSkipTests);
