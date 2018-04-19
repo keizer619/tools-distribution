@@ -211,10 +211,6 @@ node("${nodeLabel}") {
                 updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
                             "${kubernetesGroupId}:*", !isRelease);
                release(settingsXMLID, distributionRepository, distributionVersion, distributionReleaseTag, distributionDevVersion, distributionSkipTests);
-                updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
-                            "${dockerGroupId}:*", true);
-                updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
-                            "${kubernetesGroupId}:*", true);
            } else if (isBuild) {
                build(settingsXMLID, distributionRepository, distributionSkipTests);
            } else if (isCleanRelease) {
