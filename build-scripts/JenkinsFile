@@ -31,6 +31,9 @@ def releaseParamInput, buildParamInput, cleanReleaseParamInput;
 
 String TEXT_PARAM_DEF_CLASS = "StringParameterDefinition";
 String CHOICE_PARAM_DEF_CLASS = "ChoiceParameterDefinition";
+String propertyUpdateCommitMessage = "Update versions of org.ballerinalang.* dependencies";
+String dockerGroupId = "org.ballerainax.docker";
+String kubernetesGroupId = "org.ballerainax.kubernetes";
 
 if (isRelease) {
     releaseParamInput = input(
@@ -138,6 +141,28 @@ node("${nodeLabel}") {
             }
         }
 
+        if (isBuild || isRelease) {
+            // Archive the runtime distribution
+            stage("Archiving Runtime distribution") {
+                archiveArtifacts artifacts: 'ballerina-lang/distribution/zip/ballerina/target/ballerina-*.zip'
+            }
+
+            // Archive the tools distribution
+            stage("Archiving Tools distribution") {
+                archiveArtifacts artifacts: 'ballerina-lang/distribution/zip/ballerina-tools/target/ballerina-*.zip'
+            }
+
+            // Archive the vscode distribution
+            stage("Archiving VSCode distribution") {
+                archiveArtifacts artifacts: 'ballerina-lang/tool-plugins/vscode/target/ballerina-vscode-plugin-*.vsix'
+            }
+
+            // Archive the api docs
+            stage("Archiving API docs") {
+                archiveArtifacts artifacts: 'ballerina-lang/distribution/zip/ballerina-tools/target/ballerina-api-docs-*.zip'
+            }
+        }
+
        stage('Building examples') {
            cloneRepository(exampleRepository, branchName, user, gitCredentialsID, gitEmail);
            if (isRelease) {
@@ -148,6 +173,13 @@ node("${nodeLabel}") {
                cleanRelease(exampleRepository, user, releaseTagToClean, releaseVersionToClean, gitCredentialsID)
            }
        }
+
+        if (isBuild || isRelease) {
+            //Archive the Examples
+            stage("Archiving Examples") {
+               archiveArtifacts artifacts: 'ballerina-examples/target/ballerina-*.zip'
+            }
+        }
 
         stage('Building docker') {
            cloneRepository(dockerRepository, branchName, ballerinaXUser, gitCredentialsID, gitEmail);
@@ -174,7 +206,15 @@ node("${nodeLabel}") {
        stage('Building distribution') {
            cloneRepository(distributionRepository, branchName, user, gitCredentialsID, gitEmail);
            if (isRelease) {
+                updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
+                            "${dockerGroupId}:*", !isRelease);
+                updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
+                            "${kubernetesGroupId}:*", !isRelease);
                release(settingsXMLID, distributionRepository, distributionVersion, distributionReleaseTag, distributionDevVersion, distributionSkipTests);
+                updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
+                            "${dockerGroupId}:*", true);
+                updateProperties(distributionRepository, settingsXMLID, propertyUpdateCommitMessage,
+                            "${kubernetesGroupId}:*", true);
            } else if (isBuild) {
                build(settingsXMLID, distributionRepository, distributionSkipTests);
            } else if (isCleanRelease) {
@@ -185,37 +225,12 @@ node("${nodeLabel}") {
         if (isBuild || isRelease) {
             // Archive the runtime distribution
             stage("Archiving Runtime distribution") {
-                archiveArtifacts artifacts: 'ballerina-lang/distribution/zip/ballerina/target/ballerina-*.zip'
+                archiveArtifacts artifacts: 'ballerina-distribution/ballerina-runtime/target/ballerina-*.zip'
             }
 
-            // Archive the tools distribution
-            stage("Archiving Tools distribution") {
-                archiveArtifacts artifacts: 'ballerina-lang/distribution/zip/ballerina-tools/target/ballerina-*.zip'
-            }
-
-
-           stage("Archiving Runtime distribution") {
-               archiveArtifacts artifacts: 'ballerina-distribution/ballerina-runtime/target/ballerina-*.zip'
-           }
-
-           // Archive the tools distribution
-           stage("Archiving Tools distribution") {
-               archiveArtifacts artifacts: 'ballerina-distribution/ballerina-platform/target/ballerina-*.zip'
-           }
-
-           // Archive the Examples
-        //    stage("Archiving Examples") {
-        //        archiveArtifacts artifacts: 'ballerina-examples/target/ballerina-*.zip'
-        //    }
-
-            // Archive the vscode distribution
-            stage("Archiving VSCode distribution") {
-                archiveArtifacts artifacts: 'ballerina-lang/tool-plugins/vscode/target/ballerina-vscode-plugin-*.vsix'
-            }
-
-            // Archive the api docs
-            stage("Archiving API docs") {
-                archiveArtifacts artifacts: 'ballerina-lang/distribution/zip/ballerina-tools/target/ballerina-api-docs-*.zip'
+            // Archive the platform distribution
+            stage("Archiving Platform distribution") {
+                archiveArtifacts artifacts: 'ballerina-distribution/ballerina-platform/target/ballerina-*.zip'
             }
         }
     } catch (Exception e) {
@@ -392,5 +407,37 @@ def setupGitUser(String gitCredentialsID, String gitEmail) {
               passwordVariable: 'GIT_PASSWORD']]) {
         sh("git config user.name ${GIT_USERNAME}");
         sh("git config user.email ${gitEmail}");
+    }
+}
+
+/**
+ * This method updates version properties of a given repository.
+ *
+ * @param repositoryName The repository directory
+ * @param settingsXml settingsXml ID of the settings.xml file to be used which is added under managed files in Jenkins
+ * @param commitMessage The message for the property update commit
+ * @param propertiesList GroupID:artifactID based filter for updating properties
+ * @param allowSnapshots Whether to consider snapshot versions when updating properties
+ */
+def updateProperties(String repositoryName, String settingsXml, String commitMessage, String propertiesList, boolean allowSnapshots) {
+    configFileProvider(
+            [configFile(fileId: settingsXml, variable: 'MAVEN_SETTINGS')]) {
+        dir(repositoryName) {
+            withEnv(["JAVA_HOME=${ tool env.JDK }", "PATH+MAVEN=${tool env.MAVEN_TOOL}/bin:${env.JAVA_HOME}/bin"]) {
+                if (!allowSnapshots) {
+                    sh "mvn -s $MAVEN_SETTINGS versions:update-properties -Dincludes=${propertiesList}"
+                } else {
+                    sh "mvn -s $MAVEN_SETTINGS versions:update-properties -Dincludes=${propertiesList} -DallowSnapshots=true"
+                }
+                boolean changesPresent = sh(
+                        script: "git diff-index --quiet HEAD",
+                        returnStatus: true
+                ) == 1
+                if (changesPresent) {
+                    sh("git add -u")
+                    sh("git commit -m '${commitMessage}'");
+                }
+            }
+        }
     }
 }
