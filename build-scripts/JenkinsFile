@@ -155,7 +155,7 @@ node("${nodeLabel}") {
 
             // Archive the vscode distribution
             stage("Archiving VSCode distribution") {
-                archiveArtifacts artifacts: 'ballerina-lang/tool-plugins/vscode/target/ballerina-vscode-plugin-*.vsix'
+                archiveArtifacts artifacts: 'ballerina-lang/tool-plugins/vscode/plugin/target/ballerina-vscode-plugin-*.vsix'
             }
 
             // Archive the api docs
