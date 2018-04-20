@@ -31,7 +31,7 @@ def releaseParamInput, buildParamInput, cleanReleaseParamInput;
 
 String TEXT_PARAM_DEF_CLASS = "StringParameterDefinition";
 String CHOICE_PARAM_DEF_CLASS = "ChoiceParameterDefinition";
-String propertyUpdateCommitMessage = "Update versions of org.ballerinalang.* dependencies";
+String propertyUpdateCommitMessage = "Update versions of dependencies";
 String dockerGroupId = "org.ballerinax.docker";
 String kubernetesGroupId = "org.ballerinax.kubernetes";
 String ballerinaGroupId = "org.ballerinalang";
@@ -185,7 +185,9 @@ node("${nodeLabel}") {
         stage('Building docker') {
            cloneRepository(dockerRepository, branchName, ballerinaXUser, gitCredentialsID, gitEmail);
            if (isRelease) {
-               release(settingsXMLID, dockerRepository, dockerVersion, dockerReleaseTag, dockerDevVersion, dockerSkipTests);
+                updateProperties(dockerRepository, settingsXMLID, propertyUpdateCommitMessage,
+                        "${ballerinaGroupId}:*", !isRelease);
+                release(settingsXMLID, dockerRepository, dockerVersion, dockerReleaseTag, dockerDevVersion, dockerSkipTests);
            } else if (isBuild) {
                build(settingsXMLID, dockerRepository, dockerSkipTests);
            } else if (isCleanRelease) {
@@ -196,7 +198,9 @@ node("${nodeLabel}") {
         stage('Building kubernetes') {
            cloneRepository(kubernetesRepository, branchName, ballerinaXUser, gitCredentialsID, gitEmail);
            if (isRelease) {
-               release(settingsXMLID, kubernetesRepository, kubernetesVersion, kubernetesReleaseTag, kubernetesDevVersion, kubernetesSkipTests);
+                updateProperties(kubernetesRepository, settingsXMLID, propertyUpdateCommitMessage,
+                        "${ballerinaGroupId}:*", !isRelease);
+                release(settingsXMLID, kubernetesRepository, kubernetesVersion, kubernetesReleaseTag, kubernetesDevVersion, kubernetesSkipTests);
            } else if (isBuild) {
                build(settingsXMLID, kubernetesRepository, kubernetesSkipTests);
            } else if (isCleanRelease) {
